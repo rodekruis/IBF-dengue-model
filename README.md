@@ -5,6 +5,7 @@ Predict mosquito abundance from meteorological data.
 Generic requirements:
 -   [Google Cloud account](https://cloud.google.com/)
 -   [Google Earth Engine service account](https://developers.google.com/earth-engine/guides/service_account)
+
 For 510: Project service account accessible [here](https://console.cloud.google.com/iam-admin/serviceaccounts/details/109300242343650934727;edit=true?previousPage=%2Fapis%2Fcredentials%3Fauthuser%3D1%26project%3Depidemic-risk-assessment&authuser=1&folder=&organizationId=&project=epidemic-risk-assessment), login credentials in Bitwarden
 
 ### with Docker

@@ -1,5 +1,11 @@
+"""
+Compute dengue risk from meteorological data.
+Author: Jacopo Margutti (jmargutti@redcross.nl)
+Date: 22-03-2021
+"""
 import pandas as pd
 import numpy as np
+
 
 def compute_suitability(data, temperaturesuitability):
     df = pd.read_csv(data)

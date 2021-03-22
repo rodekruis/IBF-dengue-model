@@ -1,3 +1,8 @@
+"""
+Run the full mosquito-model pipeline.
+Author: Jacopo Margutti (jmargutti@redcross.nl)
+Date: 22-03-2021
+"""
 import pandas as pd
 from mosquito_model.get_data import get_data
 from mosquito_model.compute_zonalstats import compute_zonalstats
@@ -36,6 +41,7 @@ def get_dates_in_range(begin, end):
     end_dates.append(dt_end)
     return start_dates[:-1], end_dates[:-1]
 
+
 # define input data
 input_data = [
     ('NASA/GPM_L3/IMERG_V06', 'precipitationCal'),
@@ -43,6 +49,7 @@ input_data = [
     ('MODIS/006/MOD11A1', 'LST_Day_1km'),
     ('MODIS/006/MOD11A1', 'LST_Night_1km')
 ]
+
 
 @click.command()
 @click.option('--countrycode', default='PHL', help='country iso code')

@@ -1,3 +1,8 @@
+"""
+Compute zonal statistics on raster images.
+Author: Jacopo Margutti (jmargutti@redcross.nl)
+Date: 22-03-2021
+"""
 import rasterio
 import rasterio as rio
 import rasterio.mask
@@ -12,6 +17,7 @@ import glob
 import datetime
 import click
 
+
 def clipTiffWithShapes(tiffLocaction, shapes):
     with rasterio.open(tiffLocaction) as src:
         outImage, out_transform = rasterio.mask.mask(src, shapes, crop=True)
@@ -23,6 +29,7 @@ def clipTiffWithShapes(tiffLocaction, shapes):
                     "transform": out_transform})
 
     return outImage, outMeta
+
 
 def calculateRasterStats(source, district, outFileAffected, exclude_zero=True):
     raster = rasterio.open(outFileAffected)
@@ -41,10 +48,7 @@ def calculateRasterStats(source, district, outFileAffected, exclude_zero=True):
              }
     return stats
 
-# @click.command()
-# @click.option('--raster', help='input directory w/ rasters')
-# @click.option('--vector', help='vector file')
-# @click.option('--feat', default='ADM2_EN', help='feature name in vector file')
+
 def compute_zonalstats(raster, vector, feat):
 
     raster_file_dir = raster
@@ -97,7 +101,4 @@ def compute_zonalstats(raster, vector, feat):
     os.remove("temp.tif")
     return df_final
 
-
-# if __name__ == "__main__":
-#     compute_zonalstats()
 

@@ -2,7 +2,7 @@
 Predict mosquito abundance from meteorological data.
 
 ## Setup
-Requirements:
+Generic requirements:
 -   [Google Cloud account](https://cloud.google.com/)
 -   [Google Earth Engine service account](https://developers.google.com/earth-engine/guides/service_account)
 
@@ -27,7 +27,7 @@ mosquito_model/credentials/
 ```
 
 ### Manual Setup
-Requirements:
+Specific requirements:
 -   [Python >= 3.6.5](https://www.python.org/downloads/)
 
 1. Move to project root 

@@ -40,7 +40,11 @@ cd mosquito_model
 ```
 pip install .
 ```
-3. Copy your Google Earth Engine service account credentials (stored as .json) in
+3. Download input data from [here](https://rodekruis.sharepoint.com/sites/510-CRAVK-510/_layouts/15/guestaccess.aspx?docid=01fe7b3505b0440229856228d6210044c&authkey=Acr_sCnyg7cKHmMUw0ay1C8&expiration=2022-03-21T23%3A00%3A00.000Z&e=ciWvIh) and move it to
+```
+mosquito_model/input/
+```
+5. Copy your Google Earth Engine service account credentials (stored as .json) in
 ```
 mosquito_model/credentials/
 ```

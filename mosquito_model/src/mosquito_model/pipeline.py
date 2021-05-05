@@ -6,7 +6,8 @@ Date: 22-03-2021
 import pandas as pd
 from mosquito_model.get_data import get_data
 from mosquito_model.compute_zonalstats import compute_zonalstats
-from mosquito_model.compute_risk import compute_suitability
+from mosquito_model.compute_risk import compute_risk
+from mosquito_model.compute_suitability import compute_suitability
 import datetime
 from dateutil.relativedelta import relativedelta
 import geopandas as gpd
@@ -17,7 +18,9 @@ import click
 import json
 import shutil
 from pathlib import Path
-
+import requests
+from dotenv import load_dotenv
+import errno
 
 def get_dates_in_range(begin, end):
     """
@@ -57,24 +60,31 @@ input_data = [
               help='vector file with admin boundaries')
 @click.option('--temperaturesuitability', default='input/temperature_suitability.csv',
               help='table with suitability vs temperature')
-@click.option('--geecredentials', default='credentials/era-service-account-credentials.json',
-              help='Google Earth Engine credentials')
-@click.option('--admincode', default='ADM2_EN', help='which feature in vector file')
+@click.option('--thresholds', default='input/alert_thresholds.csv',
+              help='table with thresholds anc coefficients to convert risk to dengue cases')
+@click.option('--demographics', default='input/phl_vulnerability_dengue_data_ibfera.csv',
+              help='table with demographic data')
+@click.option('--credentials', default='credentials',
+              help='directory with credentials')
+@click.option('--admincode', default='ADM2_PCODE', help='which feature in vector file')
 @click.option('--data', default='input', help='input data directory')
 @click.option('--dest', default='output', help='output data directory')
 @click.option('--predictstart', default=datetime.date.today().strftime("%Y-%m-%d"),
               help='start predictions from date (%Y-%m-%d)')
 @click.option('--predictend', default=None, help='end predictions on date (%Y-%m-%d)')
 @click.option('--storeraster', is_flag=True, help='store raster data')
-def main(countrycode, vector, temperaturesuitability, geecredentials, admincode, data, dest, predictstart, predictend,
-         storeraster):
+@click.option('--verbose', is_flag=True, help='print each step')
+@click.option('--ibfupload', is_flag=True, help='upload output to IBF system')
+def main(countrycode, vector, temperaturesuitability, thresholds, demographics, credentials, admincode, data, dest,
+         predictstart, predictend, storeraster, verbose, ibfupload):
 
     # initialize GEE
-    with open(geecredentials) as f:
+    gee_credentials = os.path.join(credentials, 'era-service-account-credentials.json')
+    with open(gee_credentials) as f:
         credentials_dict = json.load(f)
         service_account = credentials_dict['client_email']
-        credentials = ee.ServiceAccountCredentials(service_account, geecredentials)
-        ee.Initialize(credentials)
+        gee_credentials_token = ee.ServiceAccountCredentials(service_account, gee_credentials)
+        ee.Initialize(gee_credentials_token)
 
     # define administrative divisions
     gdf = gpd.read_file(vector)
@@ -115,65 +125,103 @@ def main(countrycode, vector, temperaturesuitability, geecredentials, admincode,
             # get raw data
             raster_data = get_data(countrycode, start_date, end_date, data, data_tuple[0], data_tuple[1])
             # compute zonal statistics
-            df_stats = compute_zonalstats(raster_data, vector, 'ADM2_EN').reset_index()
+            df_stats = compute_zonalstats(raster_data, vector, admincode).reset_index()
             # save zonal statistics in dataframe for processed data
             for ix, row in df_stats.iterrows():
-                df_data_processed.at[(row['adm_division'], start_date.year, start_date.month), data_tuple[1]] = row['mean']
+                try:
+                    df_data_processed.at[(row['adm_division'], start_date.year, start_date.month), data_tuple[1]] = row['mean']
+                except:
+                    print('ERROR at', data_tuple, start_date, end_date)
         # remove raster data
         if not storeraster:
             shutil.rmtree(Path(raster_data).parent)
 
     df_data_processed.rename_axis(index=['adm_division', 'year', 'month'], inplace=True)
-    print(df_data_processed.head())
-    df_data_processed.to_csv(processed_data)
+    if verbose:
+        print('PROCESSED METEOROLOGICAL DATA')
+        print(df_data_processed.head())
+    df_data_processed.to_csv(processed_data) # store processed data
 
-    # compute suitability
+    # compute vector suitability
     df = compute_suitability(processed_data, temperaturesuitability)
-    print(df.head())
 
-    # add two months ahead to the dates in the dataframe
-    df['date'] = df['year'].astype(str) + '-' + df['month'].astype(str) + '-15'
-    df['date'] = pd.to_datetime(df['date'])  # convert to datetime
-    df_ = df.append(pd.Series({'date': max(df['date']) + datetime.timedelta(30)}), ignore_index=True)  # one month
-    df_ = df_.append(pd.Series({'date': max(df['date']) + datetime.timedelta(60)}), ignore_index=True)  # two months
-    dfdates = df_.groupby('date').sum().reset_index()
-    dfdates['year'] = dfdates['date'].dt.year
-    dfdates['month'] = dfdates['date'].dt.month
-    dfdates = dfdates[['year', 'month']]
-    # remove first three months (no data to predict)
-    dfdates = dfdates[3:]
+    # compute risk
+    df_predictions = compute_risk(df, adm_divisions, num_months_ahead=3)
+    if verbose:
+        print('VECTOR SUITABILITY AND RISK PREDICTIONS')
+        print(df_predictions.head())
 
-    # initialize dataframe for predictions
-    df_predictions = pd.DataFrame()
-    for adm_division in adm_divisions:
-        for year, month in zip(dfdates.year.values, dfdates.month.values):
-            df_predictions = df_predictions.append(pd.Series(name=(adm_division, year, month), dtype='object'))
+    # calculate exposed population
+    df_thresholds = pd.read_csv(thresholds)
+    df_demo = pd.read_csv(demographics, index_col=1)
+    df_predictions['potential_cases'] = 0
+    df_predictions['potential_cases_U9'] = 0
+    df_predictions['potential_cases_65'] = 0
+    df_predictions['alert'] = False
 
-    # calculate predictions
-    for admin_division in adm_divisions:
-        df_admin_div = df[df.adm_division == admin_division]
-        for year, month in zip(dfdates.year.values, dfdates.month.values):
-            date_prediction = datetime.datetime.strptime(f'{year}-{month}-15', '%Y-%m-%d')
-            dates_input = [date_prediction - datetime.timedelta(90),
-                          date_prediction - datetime.timedelta(60),
-                          date_prediction - datetime.timedelta(30)]
-            weights_input = [0.16, 0.68, 0.16]
-            risk_total, weight_total = 0., 0.
-            for date_input, weight_input in zip(dates_input, weights_input):
-                month_input = date_input.month
-                year_input = date_input.year
-                df_input = df_admin_div[(df_admin_div.month == month_input) & (df_admin_div.year == year_input)]
-                if not df_input.empty:
-                    risk_total += weight_input * df_input.iloc[0]['suitability']
-                    weight_total += weight_input
+    for ix, row in df_predictions.iterrows():
+        place_date = (df_thresholds['adm_division']==row['adm_division']) & (df_thresholds['month']==row['month'])
+        coeff = df_thresholds[place_date]['coeff'].values[0]
+        thr_std = df_thresholds[place_date]['alert_threshold_std'].values[0]
+        thr_qnt = df_thresholds[place_date]['alert_threshold_qnt'].values[0]
+        if row['risk'] > thr_std and row['risk'] > thr_qnt:
+            df_predictions.at[ix, 'alert'] = True
+        df_predictions.at[ix, 'potential_cases'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population'])
+        df_predictions.at[ix, 'potential_cases_U9'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population U9'])
+        df_predictions.at[ix, 'potential_cases_65'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population 65+'])
+    if verbose:
+        print('VECTOR SUITABILITY AND RISK PREDICTIONS AND POTENTIAL CASES')
+        print(df_predictions.head())
+    df_predictions.to_csv(predictions_data) # store predictions
 
-            risk_total = risk_total / weight_total
-            df_predictions.at[(admin_division, year, month), 'risk'] = risk_total
+    if ibfupload:
+        # load IBF system credentials
+        ibf_credentials = os.path.join(credentials, 'ibf-credentials.env')
+        if not os.path.exists(ibf_credentials):
+            print(f'ERROR: IBF credentials not found in {credentials}')
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), ibf_credentials)
+        load_dotenv(dotenv_path=ibf_credentials)
+        IBF_API_URL = os.environ.get("IBF_API_URL")
+        ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN")
+        ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
-    df_predictions.rename_axis(index=['adm_division', 'year', 'month'], inplace=True)
-    print(df_predictions.head())
-    df_predictions.to_csv(predictions_data)
+        # prepare data to upload
+        today = datetime.date.today()
 
+        # loop over lead times
+        for num_lead_time, lead_time in enumerate(["0-month", "1-month", "2-month"]):
+
+            # select dataframe of given lead time
+            lead_time_date = today + num_lead_time * datetime.timedelta(31)
+            df_month = df_predictions[(df_predictions['year']==lead_time_date.year)
+                                      & (df_predictions['month']==lead_time_date.month)]
+
+            # loop over layers to upload
+            for layer in ["alert", "potential_cases", "potential_cases_U9", "potential_cases_65"]:
+
+                # prepare layer
+                exposure_data = {'countryCodeISO3': countrycode}
+                exposure_place_codes = []
+                for ix, row in df_month.iterrows():
+                    exposure_entry = {'placeCode': row['adm_division'],
+                                     'amount': row[layer]}
+                    exposure_place_codes.append(exposure_entry)
+                exposure_data['exposurePlaceCodes'] = exposure_place_codes
+                exposure_data["leadTime"] = lead_time
+                exposure_data["exposureUnit"] = layer
+
+                # upload data
+                login_response = requests.post(f'{IBF_API_URL}/api/user/login',
+                                               data=[('email', ADMIN_LOGIN), ('password', ADMIN_PASSWORD)])
+                TOKEN = login_response.json()['user']['token']
+                r = requests.post(os.path.join(IBF_API_URL, 'api/upload/exposure'),
+                                  json=exposure_data,
+                                  headers={'Authorization': 'Bearer '+TOKEN,
+                                           'Content-Type': 'application/json',
+                                           'Accept': 'application/json'})
+                if r.status_code >= 400:
+                    print(r.text)
+                    raise ValueError()
 
 if __name__ == "__main__":
     main()

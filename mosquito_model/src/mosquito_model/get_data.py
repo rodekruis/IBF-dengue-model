@@ -93,8 +93,11 @@ def get_data(country_iso_code, datestart, dateend, dest, collection, variable):
 
     # set a name to the file and download to disk
     # print('downloading ' + name)
-    batch.image.toLocal(image_agg,
-                        file_name,
-                        scale=image_scale,
-                        region=bounding_box)
+    try:
+        batch.image.toLocal(image_agg,
+                            file_name,
+                            scale=image_scale,
+                            region=bounding_box)
+    except FileExistsError:
+        pass
     return file_name

@@ -97,8 +97,8 @@ def compute_zonalstats(raster, vector, feat):
 
         for idx, stat_region in enumerate(stats):
             df_final.at[adm_divisions[idx], 'mean'] = stat_region['mean']
-
-    os.remove("temp.tif")
+    if os.path.exists("temp.tif"):
+        os.remove("temp.tif")
     return df_final
 
 

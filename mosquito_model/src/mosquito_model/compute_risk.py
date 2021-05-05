@@ -1,46 +1,60 @@
 """
-Compute dengue risk from meteorological data.
+Compute dengue risk from vector suitability.
 Author: Jacopo Margutti (jmargutti@redcross.nl)
 Date: 22-03-2021
 """
 import pandas as pd
 import numpy as np
+import datetime
 
 
-def compute_suitability(data, temperaturesuitability):
-    df = pd.read_csv(data)
+def compute_risk(df, adm_divisions, num_months_ahead=3):
 
-    # calculate rainfall contribution
-    df['rainfall'] = (df['hourlyPrecipRate'] + df['precipitationCal'])/2.
-    for ix, row in df.iterrows():
-        df.at[ix, 'rain_suit'] = 1. if row['rainfall'] > 300. else row['rainfall']/300.
+    # add N months ahead to the dates in the dataframe
+    df['date'] = df['year'].astype(str) + '-' + df['month'].astype(str) + '-15'
+    df['date'] = pd.to_datetime(df['date'])  # convert to datetime
+    df_ = df.copy()
+    for n in range(num_months_ahead):
+        df_ = df_.append(pd.Series({'date': max(df['date']) + (n+1) * datetime.timedelta(31)}), ignore_index=True)
+    dfdates = df_.groupby('date').sum().reset_index()
+    dfdates['year'] = dfdates['date'].dt.year
+    dfdates['month'] = dfdates['date'].dt.month
+    dfdates = dfdates[['year', 'month']]
+    # remove first three months (no data to predict)
+    dfdates = dfdates[3:]
 
-    # correct temperature NCR
-    df = df.rename(columns={'Unnamed: 0': 'adm_division'})
-    NCR_index = df[df['adm_division'] == 'NCR'].index.tolist()
-    print(df.loc[NCR_index])
-    df.at[NCR_index, 'LST_Day_1km'] = df.loc[NCR_index]['LST_Day_1km'] - 4.
-    print(df.loc[NCR_index])
+    # initialize dataframe for risk predictions
+    df_predictions = pd.DataFrame()
+    for adm_division in adm_divisions:
+        for year, month in zip(dfdates.year.values, dfdates.month.values):
+            df_predictions = df_predictions.append(pd.Series(name=(adm_division, year, month), dtype='object'))
 
-    # calculate temperature suitability
-    df_temp = pd.read_csv(temperaturesuitability)
-    for ix, row in df.iterrows():
-        if not pd.isna(row['LST_Day_1km']):
-            index = df_temp['temperature'].sub(row['LST_Day_1km']).abs().idxmin()
-            df.at[ix, 'temp_suit_day'] = df_temp.iloc[index]['temperature_suitability']
-        else:
-            df.at[ix, 'temp_suit_day'] = np.nan
-        if not pd.isna(row['LST_Night_1km']):
-            index = df_temp['temperature'].sub(row['LST_Night_1km']).abs().idxmin()
-            df.at[ix, 'temp_suit_night'] = df_temp.iloc[index]['temperature_suitability']
-        else:
-            df.at[ix, 'temp_suit_night'] = np.nan
-    df['temp_suit'] = df[['temp_suit_day', 'temp_suit_night']].min(axis=1)
+    # loop over admin divisions anc calculate risk
+    for admin_division in adm_divisions:
+        df_admin_div = df[df.adm_division == admin_division]
+        for year, month in zip(dfdates.year.values, dfdates.month.values):
+            # store suitability
+            df_suitability = df_admin_div[(df_admin_div.month == month) & (df_admin_div.year == year)]
+            if not df_suitability.empty:
+                df_predictions.at[(admin_division, year, month), 'suitability'] = df_suitability.iloc[0]['suitability']
+            # calculate risk
+            date_prediction = datetime.datetime.strptime(f'{year}-{month}-15', '%Y-%m-%d')
+            dates_input = [date_prediction - datetime.timedelta(90),
+                          date_prediction - datetime.timedelta(60),
+                          date_prediction - datetime.timedelta(30)]
+            weights_input = [0.16, 0.68, 0.16]
+            risk_total, weight_total = 0., 0.
+            for date_input, weight_input in zip(dates_input, weights_input):
+                month_input = date_input.month
+                year_input = date_input.year
+                df_input = df_admin_div[(df_admin_div.month == month_input) & (df_admin_div.year == year_input)]
+                if not df_input.empty:
+                    risk_total += weight_input * df_input.iloc[0]['suitability']
+                    weight_total += weight_input
+            risk_total = risk_total / weight_total
+            # store risk
+            df_predictions.at[(admin_division, year, month), 'risk'] = risk_total
 
-    # final suitability score
-    df['suitability'] = (df['temp_suit'] + df['rain_suit'])/2.
-
-    df = df.rename(columns={'Unnamed: 0': 'adm_division',
-                            'Unnamed: 1': 'year',
-                            'Unnamed: 2': 'month'})
-    return df
+    df_predictions.rename_axis(index=['adm_division', 'year', 'month'], inplace=True)
+    df_predictions.reset_index(inplace=True)
+    return df_predictions

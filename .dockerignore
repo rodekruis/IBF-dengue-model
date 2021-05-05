@@ -3,3 +3,6 @@ __pycache__/
 .git/
 .idea/
 mosquito_model/credentials/*.json
+mosquito_model/credentials/*.env
+data/
+notebooks/

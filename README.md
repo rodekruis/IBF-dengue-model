@@ -54,15 +54,19 @@ mosquito_model/credentials/
 Usage: run-mosquito-model [OPTIONS]
 
 Options:
-  --countrycode TEXT             country code (ISO 3166-1 alpha-3)
+  --countrycode TEXT             country iso code
   --vector TEXT                  vector file with admin boundaries
   --temperaturesuitability TEXT  table with suitability vs temperature
-  --geecredentials TEXT          Google Earth Engine credentials
-  --admincode TEXT               which feature to use in vector file with admin boundaries
+  --thresholds TEXT              table with thresholds and coefficients to convert risk to dengue cases
+  --demographics TEXT            table with demographic data
+  --credentials TEXT             directory with credentials
+  --admincode TEXT               which feature in vector file
   --data TEXT                    input data directory
   --dest TEXT                    output data directory
   --predictstart TEXT            start predictions from date (%Y-%m-%d)
   --predictend TEXT              end predictions on date (%Y-%m-%d)
   --storeraster                  store raster data
-  --help                         show this message and exit
+  --verbose                      print each step
+  --ibfupload                    upload output to IBF system
+  --help                         Show this message and exit.
   ```

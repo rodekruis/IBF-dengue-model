@@ -1,5 +1,11 @@
 # IBF-ERA-mosquito-model
-Predict mosquito abundance from meteorological data.
+The mosquito model:
+1. calculates expected mosquito abundance given meteorological data
+2. forecast dengue risk given mosquito abundance
+3. determines if dengue risk is anomalously high and, if so, gives an *alert*
+4. calculates the expected number of cases given dengue risk
+
+See details in the IBF-ERA-mosquito-model technical documentation (to be prepared).
 
 ## Setup
 Generic requirements:

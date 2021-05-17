@@ -22,6 +22,7 @@ import requests
 from dotenv import load_dotenv
 import errno
 
+
 def get_dates_in_range(begin, end):
     """
     this function returns two lists of dates (start_dates and end_dates),
@@ -107,40 +108,43 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
     processed_data = os.path.join(dest, 'data_aggregated.csv')
     predictions_data = os.path.join(dest, 'predictions.csv')
 
-    # initialize dataframe for processed data
-    months, years = [], []
-    for date in start_dates:
-        years.append(date.year)
-        months.append(date.month)
-    df_data_processed = pd.DataFrame()
-    for adm_division in adm_divisions:
-        for year, month in zip(years, months):
-            df_data_processed = df_data_processed.append(pd.Series(name=(adm_division, year, month), dtype='object'))
+    if not os.path.exists(processed_data):
+        # initialize dataframe for processed data
+        months, years = [], []
+        for date in start_dates:
+            years.append(date.year)
+            months.append(date.month)
+        df_data_processed = pd.DataFrame()
+        for adm_division in adm_divisions:
+            for year, month in zip(years, months):
+                df_data_processed = df_data_processed.append(pd.Series(name=(adm_division, year, month), dtype='object'))
 
-    # get raw data, compute zonal statistics and save processed data
-    for data_tuple in input_data:
-        print(f"starting collection {data_tuple[0]} {data_tuple[1]}")
-        raster_data = ''
-        for start_date, end_date in tqdm(zip(start_dates, end_dates), total=len(start_dates)):
-            # get raw data
-            raster_data = get_data(countrycode, start_date, end_date, data, data_tuple[0], data_tuple[1])
-            # compute zonal statistics
-            df_stats = compute_zonalstats(raster_data, vector, admincode).reset_index()
-            # save zonal statistics in dataframe for processed data
-            for ix, row in df_stats.iterrows():
-                try:
-                    df_data_processed.at[(row['adm_division'], start_date.year, start_date.month), data_tuple[1]] = row['mean']
-                except:
-                    print('ERROR at', data_tuple, start_date, end_date)
-        # remove raster data
-        if not storeraster:
-            shutil.rmtree(Path(raster_data).parent)
+        # get raw data, compute zonal statistics and save processed data
+        for data_tuple in input_data:
+            print(f"starting collection {data_tuple[0]} {data_tuple[1]}")
+            raster_data = ''
+            for start_date, end_date in tqdm(zip(start_dates, end_dates), total=len(start_dates)):
+                # get raw data
+                raster_data = get_data(countrycode, start_date, end_date, data, data_tuple[0], data_tuple[1])
+                # compute zonal statistics
+                df_stats = compute_zonalstats(raster_data, vector, admincode).reset_index()
+                # save zonal statistics in dataframe for processed data
+                for ix, row in df_stats.iterrows():
+                    try:
+                        df_data_processed.at[(row['adm_division'], start_date.year, start_date.month), data_tuple[1]] = row['mean']
+                    except:
+                        print('ERROR at', data_tuple, start_date, end_date)
+            # remove raster data
+            if not storeraster:
+                shutil.rmtree(Path(raster_data).parent)
 
-    df_data_processed.rename_axis(index=['adm_division', 'year', 'month'], inplace=True)
+        df_data_processed.rename_axis(index=['adm_division', 'year', 'month'], inplace=True)
+        df_data_processed.to_csv(processed_data)  # store processed data
+    else:
+        df_data_processed = pd.read_csv(processed_data)
     if verbose:
         print('PROCESSED METEOROLOGICAL DATA')
         print(df_data_processed.head())
-    df_data_processed.to_csv(processed_data) # store processed data
 
     # compute vector suitability
     df = compute_suitability(processed_data, temperaturesuitability)
@@ -192,7 +196,7 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
         for num_lead_time, lead_time in enumerate(["0-month", "1-month", "2-month"]):
 
             # select dataframe of given lead time
-            lead_time_date = today + num_lead_time * datetime.timedelta(31)
+            lead_time_date = today + relativedelta(months=num_lead_time)
             df_month = df_predictions[(df_predictions['year']==lead_time_date.year)
                                       & (df_predictions['month']==lead_time_date.month)]
 

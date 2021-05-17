@@ -6,6 +6,7 @@ Date: 22-03-2021
 import pandas as pd
 import numpy as np
 import datetime
+from dateutil import relativedelta
 
 
 def compute_risk(df, adm_divisions, num_months_ahead=3):
@@ -15,7 +16,7 @@ def compute_risk(df, adm_divisions, num_months_ahead=3):
     df['date'] = pd.to_datetime(df['date'])  # convert to datetime
     df_ = df.copy()
     for n in range(num_months_ahead):
-        df_ = df_.append(pd.Series({'date': max(df['date']) + (n+1) * datetime.timedelta(31)}), ignore_index=True)
+        df_ = df_.append(pd.Series({'date': max(df['date']) + relativedelta.relativedelta(months=(n+1))}), ignore_index=True)
     dfdates = df_.groupby('date').sum().reset_index()
     dfdates['year'] = dfdates['date'].dt.year
     dfdates['month'] = dfdates['date'].dt.month

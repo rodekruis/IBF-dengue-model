@@ -17,10 +17,8 @@ def compute_suitability(data, temperaturesuitability):
 
     # correct temperature NCR
     df = df.rename(columns={'Unnamed: 0': 'adm_division'})
-    NCR_index = df[df['adm_division'] == 'NCR'].index.tolist()
-    print(df.loc[NCR_index])
+    NCR_index = df[df['adm_division'].isin(['PH133900000', 'PH137400000', 'PH137500000', 'PH137600000'])].index.tolist()
     df.at[NCR_index, 'LST_Day_1km'] = df.loc[NCR_index]['LST_Day_1km'] - 4.
-    print(df.loc[NCR_index])
 
     # calculate temperature suitability
     df_temp = pd.read_csv(temperaturesuitability)

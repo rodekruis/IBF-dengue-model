@@ -21,6 +21,7 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 import errno
+import json
 
 
 def get_dates_in_range(begin, end):
@@ -75,9 +76,10 @@ input_data = [
 @click.option('--predictend', default=None, help='end predictions on date (%Y-%m-%d)')
 @click.option('--storeraster', is_flag=True, help='store raster data')
 @click.option('--verbose', is_flag=True, help='print each step')
-@click.option('--ibfupload', is_flag=True, help='upload output to IBF system')
+@click.option('--ibfupload', is_flag=True, help='upload output to IBF system using IBF-API')
+@click.option('--saverequest', is_flag=True, help='save IBF-API call to json')
 def main(countrycode, vector, temperaturesuitability, thresholds, demographics, credentials, admincode, data, dest,
-         predictstart, predictend, storeraster, verbose, ibfupload):
+         predictstart, predictend, storeraster, verbose, ibfupload, saverequest):
 
     # initialize GEE
     gee_credentials = os.path.join(credentials, 'era-service-account-credentials.json')
@@ -93,7 +95,9 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
 
     # define date range
     start_date = datetime.datetime.strptime(predictstart, '%Y-%m-%d') - relativedelta(months=+3)
+    start_date = start_date.replace(day=1)
     start_date = start_date.strftime("%Y-%m-%d")
+    print('ECCOLA', start_date)
     if predictend is not None:
         end_date = datetime.datetime.strptime(predictend, '%Y-%m-%d') - relativedelta(months=+1)
         end_date = end_date.strftime("%Y-%m-%d")
@@ -213,6 +217,10 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
                 exposure_data['exposurePlaceCodes'] = exposure_place_codes
                 exposure_data["leadTime"] = lead_time
                 exposure_data["exposureUnit"] = layer
+
+                if saverequest:
+                    with open(os.path.join(dest, f'upload-exposure-example_leadTime-{lead_time}_exposureUnit-{layer}.json'), 'w') as fp:
+                        json.dump(exposure_data, fp)
 
                 # upload data
                 login_response = requests.post(f'{IBF_API_URL}/api/user/login',

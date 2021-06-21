@@ -33,6 +33,7 @@ docker exec -it mosquito-model bash
 ```
 mosquito_model/credentials/
 ```
+6. [OPTIONAL] If you need to send the model output to the IBF system via API, add IBF server credentials in the same directory
 
 ### Manual Setup
 Specific requirements:
@@ -54,6 +55,8 @@ mosquito_model/input/
 ```
 mosquito_model/credentials/
 ```
+6. [OPTIONAL] If you need to send the model output to the IBF system via API, add IBF server credentials in the same directory
+
 
 ## Usage
 ```

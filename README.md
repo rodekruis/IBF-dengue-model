@@ -18,7 +18,6 @@ Generic requirements:
 For 510: project service account accessible [here](https://console.cloud.google.com/iam-admin/serviceaccounts/details/109300242343650934727;edit=true?previousPage=%2Fapis%2Fcredentials%3Fauthuser%3D1%26project%3Depidemic-risk-assessment&authuser=1&folder=&organizationId=&project=epidemic-risk-assessment), login credentials in Bitwarden
 
 ### with Docker
-
 1. Install [Docker](https://www.docker.com/get-started)
 2. Download the [mosquito-model docker image](https://hub.docker.com/r/rodekruis/mosquito-model)
 ```
@@ -28,9 +27,9 @@ docker pull rodekruis/mosquito-model
 ```
 docker run --name mosquito-model rodekruis/mosquito-model
 ```
-4 Access the container
+4. Access the container
 ```
-docker exec -it mosquito-model bash
+docker run -it --entrypoint /bin/bash rodekruis/mosquito-model
 ```
 5. Copy your Google Earth Engine service account credentials (stored as .json) in
 ```

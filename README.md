@@ -62,17 +62,16 @@ Usage: run-mosquito-model [OPTIONS]
 Options:
   --countrycode TEXT             country iso code
   --vector TEXT                  vector file with admin boundaries
+  --admincode TEXT               name of admin code in vector file
   --temperaturesuitability TEXT  table with suitability vs temperature
-  --thresholds TEXT              table with thresholds and coefficients to convert risk to dengue cases
+  --thresholds TEXT              table with thresholds and coefficients (risk vs dengue cases)
   --demographics TEXT            table with demographic data
-  --credentials TEXT             directory with credentials
-  --admincode TEXT               which feature in vector file
+  --credentials TEXT             credentials directory
   --data TEXT                    input data directory
   --dest TEXT                    output data directory
   --predictstart TEXT            start predictions from date (%Y-%m-%d)
   --predictend TEXT              end predictions on date (%Y-%m-%d)
-  --storeraster                  store raster data
-  --verbose                      print each step
-  --ibfupload                    upload output to IBF system
-  --help                         Show this message and exit.
+  --storeraster                  store raster data locally
+  --verbose                      print output at each step
+  --help                         show this message and exit
   ```

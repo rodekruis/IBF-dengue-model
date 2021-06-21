@@ -1,11 +1,14 @@
-# IBF-ERA-mosquito-model
-The mosquito model:
+# IBF-dengue mosquito-model
+
+Forecast dengue outbreaks. Part of 510's [impact-based forecasting portal](https://www.510.global/impact-based-forecasting-system/). Built to support Philippines Red Cross.
+
+This model:
 1. calculates expected mosquito abundance given meteorological data
 2. forecast dengue risk given mosquito abundance
 3. determines if dengue risk is anomalously high and, if so, gives an *alert*
-4. calculates the expected number of cases given dengue risk
+4. calculates the expected number of dengue cases given dengue risk
 
-See details in the IBF-ERA-mosquito-model technical documentation (to be prepared).
+See details in the [IBF-dengue mosquito-model technical note](https://drive.google.com/file/d/1kCaJE2it05yPCkqzDGYd8cWjpTm53Nyd/view?usp=sharing).
 
 ## Setup
 Generic requirements:
@@ -33,7 +36,7 @@ docker exec -it mosquito-model bash
 ```
 mosquito_model/credentials/
 ```
-6. [OPTIONAL] If you need to send the model output to the IBF system via API, add IBF server credentials in the same directory
+6. [OPTIONAL] If you need to send the model output to the [IBF-system](https://github.com/rodekruis/IBF-system) via API, add IBF server credentials in the same directory
 
 ### Manual Setup
 Specific requirements:
@@ -55,7 +58,7 @@ mosquito_model/input/
 ```
 mosquito_model/credentials/
 ```
-6. [OPTIONAL] If you need to send the model output to the IBF system via API, add IBF server credentials in the same directory
+6. [OPTIONAL] If you need to send the model output to the [IBF-system](https://github.com/rodekruis/IBF-system) via API, add IBF server credentials in the same directory
 
 
 ## Usage

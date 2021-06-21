@@ -1,4 +1,4 @@
-# IBF-dengue mosquito-model
+# IBF-dengue-mosquito-model
 
 Forecast dengue outbreaks. Part of 510's [impact-based forecasting portal](https://www.510.global/impact-based-forecasting-system/). Built to support Philippines Red Cross.
 

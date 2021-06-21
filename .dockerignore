@@ -2,8 +2,5 @@ venv/
 __pycache__/
 .git/
 .idea/
-mosquito_model/credentials/*.json
-mosquito_model/credentials/*.env
-data/
-notebooks/
-analysis/
+# mosquito_model/credentials/*.json
+# mosquito_model/credentials/*.env

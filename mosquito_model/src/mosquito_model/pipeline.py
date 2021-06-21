@@ -97,7 +97,6 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
     start_date = datetime.datetime.strptime(predictstart, '%Y-%m-%d') - relativedelta(months=+3)
     start_date = start_date.replace(day=1)
     start_date = start_date.strftime("%Y-%m-%d")
-    print('ECCOLA', start_date)
     if predictend is not None:
         end_date = datetime.datetime.strptime(predictend, '%Y-%m-%d') - relativedelta(months=+1)
         end_date = end_date.strftime("%Y-%m-%d")
@@ -172,68 +171,17 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
         coeff = df_thresholds[place_date]['coeff'].values[0]
         thr_std = df_thresholds[place_date]['alert_threshold_std'].values[0]
         thr_qnt = df_thresholds[place_date]['alert_threshold_qnt'].values[0]
+        max_thr = max(thr_std, thr_qnt)
         if row['risk'] > thr_std and row['risk'] > thr_qnt:
             df_predictions.at[ix, 'alert'] = True
         df_predictions.at[ix, 'potential_cases'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population'])
         df_predictions.at[ix, 'potential_cases_U9'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population U9'])
         df_predictions.at[ix, 'potential_cases_65'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population 65+'])
+        df_predictions.at[ix, 'potential_cases_threshold'] = int(coeff * max_thr * df_demo.loc[row['adm_division'], 'Population'])
     if verbose:
         print('VECTOR SUITABILITY AND RISK PREDICTIONS AND POTENTIAL CASES')
         print(df_predictions.head())
     df_predictions.to_csv(predictions_data) # store predictions
-
-    if ibfupload:
-        # load IBF system credentials
-        ibf_credentials = os.path.join(credentials, 'ibf-credentials.env')
-        if not os.path.exists(ibf_credentials):
-            print(f'ERROR: IBF credentials not found in {credentials}')
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), ibf_credentials)
-        load_dotenv(dotenv_path=ibf_credentials)
-        IBF_API_URL = os.environ.get("IBF_API_URL")
-        ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN")
-        ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-
-        # prepare data to upload
-        today = datetime.date.today()
-
-        # loop over lead times
-        for num_lead_time, lead_time in enumerate(["0-month", "1-month", "2-month"]):
-
-            # select dataframe of given lead time
-            lead_time_date = today + relativedelta(months=num_lead_time)
-            df_month = df_predictions[(df_predictions['year']==lead_time_date.year)
-                                      & (df_predictions['month']==lead_time_date.month)]
-
-            # loop over layers to upload
-            for layer in ["alert", "potential_cases", "potential_cases_U9", "potential_cases_65"]:
-
-                # prepare layer
-                exposure_data = {'countryCodeISO3': countrycode}
-                exposure_place_codes = []
-                for ix, row in df_month.iterrows():
-                    exposure_entry = {'placeCode': row['adm_division'],
-                                     'amount': row[layer]}
-                    exposure_place_codes.append(exposure_entry)
-                exposure_data['exposurePlaceCodes'] = exposure_place_codes
-                exposure_data["leadTime"] = lead_time
-                exposure_data["exposureUnit"] = layer
-
-                if saverequest:
-                    with open(os.path.join(dest, f'upload-exposure-example_leadTime-{lead_time}_exposureUnit-{layer}.json'), 'w') as fp:
-                        json.dump(exposure_data, fp)
-
-                # upload data
-                login_response = requests.post(f'{IBF_API_URL}/api/user/login',
-                                               data=[('email', ADMIN_LOGIN), ('password', ADMIN_PASSWORD)])
-                TOKEN = login_response.json()['user']['token']
-                r = requests.post(os.path.join(IBF_API_URL, 'api/upload/exposure'),
-                                  json=exposure_data,
-                                  headers={'Authorization': 'Bearer '+TOKEN,
-                                           'Content-Type': 'application/json',
-                                           'Accept': 'application/json'})
-                if r.status_code >= 400:
-                    print(r.text)
-                    raise ValueError()
 
 if __name__ == "__main__":
     main()

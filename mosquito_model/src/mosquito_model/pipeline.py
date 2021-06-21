@@ -60,22 +60,22 @@ input_data = [
 @click.option('--countrycode', default='PHL', help='country iso code')
 @click.option('--vector', default='input/phl_admbnda_adm2plusNCR_simplified.shp',
               help='vector file with admin boundaries')
+@click.option('--admincode', default='ADM2_PCODE', help='name of admin code in vector file')
 @click.option('--temperaturesuitability', default='input/temperature_suitability.csv',
               help='table with suitability vs temperature')
 @click.option('--thresholds', default='input/alert_thresholds.csv',
-              help='table with thresholds anc coefficients to convert risk to dengue cases')
+              help='table with thresholds and coefficients (risk vs dengue cases)')
 @click.option('--demographics', default='input/phl_vulnerability_dengue_data_ibfera.csv',
               help='table with demographic data')
 @click.option('--credentials', default='credentials',
-              help='directory with credentials')
-@click.option('--admincode', default='ADM2_PCODE', help='which feature in vector file')
+              help='credentials directory')
 @click.option('--data', default='input', help='input data directory')
 @click.option('--dest', default='output', help='output data directory')
 @click.option('--predictstart', default=datetime.date.today().strftime("%Y-%m-%d"),
               help='start predictions from date (%Y-%m-%d)')
 @click.option('--predictend', default=None, help='end predictions on date (%Y-%m-%d)')
-@click.option('--storeraster', is_flag=True, help='store raster data')
-@click.option('--verbose', is_flag=True, help='print each step')
+@click.option('--storeraster', is_flag=True, help='store raster data locally')
+@click.option('--verbose', is_flag=True, help='print output at each step')
 def main(countrycode, vector, temperaturesuitability, thresholds, demographics, credentials, admincode, data, dest,
          predictstart, predictend, storeraster, verbose):
 

@@ -23,7 +23,16 @@ from dotenv import load_dotenv
 import errno
 import json
 import time
-import subprocesss
+import logging
+logging.root.handlers = []
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO, filename='ex.log')
+# set up logging to console
+console = logging.StreamHandler()
+console.setLevel(logging.ERROR)
+# set a format which is simpler for console use
+formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(message)s')
+console.setFormatter(formatter)
+logging.getLogger("").addHandler(console)
 
 
 def get_dates_in_range(begin, end):
@@ -224,12 +233,8 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
             login_response = requests.post(f'{IBF_API_URL}/api/user/login',
                                            data=[('email', ADMIN_LOGIN), ('password', ADMIN_PASSWORD)])
             if login_response.status_code >= 400:
-                print(f"ERROR {login_response.status_code} LOGIN: {login_response.text}")
-                print("starting infinite loop to make the docker container fail")
-                count = 0
-                while count < 1:
-                    time.sleep(10)
-                # raise ValueError()
+                logging.error(f"PIPELINE ERROR AT LOGIN {login_response.status_code}: {login_response.text}")
+                raise ValueError()
 
             token = login_response.json()['user']['token']
             upload_response = requests.post(f'{IBF_API_URL}/api/admin-area-dynamic-data/exposure',
@@ -238,12 +243,8 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
                                                      'Content-Type': 'application/json',
                                                      'Accept': 'application/json'})
             if upload_response.status_code >= 400:
-                print(f"ERROR {upload_response.status_code} UPLOAD: {upload_response.text}")
-                print("starting infinite loop to make the docker container fail")
-                count = 0
-                while count < 1:
-                    time.sleep(10)
-                # raise ValueError()
+                logging.error(f"PIPELINE ERROR AT UPLOAD {login_response.status_code}: {login_response.text}")
+                raise ValueError()
 
 
 if __name__ == "__main__":

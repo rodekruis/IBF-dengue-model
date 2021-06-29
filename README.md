@@ -19,9 +19,13 @@ For 510: project service account accessible [here](https://console.cloud.google.
 
 ### with Docker
 1. Install [Docker](https://www.docker.com/get-started)
-2. Download the [mosquito-model docker image](https://hub.docker.com/r/rodekruis/mosquito-model)
+3. Download input data from [here](https://rodekruis.sharepoint.com/sites/510-CRAVK-510/_layouts/15/guestaccess.aspx?docid=01fe7b3505b0440229856228d6210044c&authkey=Acr_sCnyg7cKHmMUw0ay1C8&expiration=2022-03-21T23%3A00%3A00.000Z&e=ciWvIh) and move it to
 ```
-docker pull rodekruis/mosquito-model
+mosquito_model/input/
+```
+5. Copy your Google Earth Engine service account credentials (stored as .json) and [IBF-system](https://github.com/rodekruis/IBF-system) credentials (stored as .env) in
+```
+mosquito_model/credentials/
 ```
 3. Create a docker container
 ```
@@ -31,11 +35,10 @@ docker run --name mosquito-model rodekruis/mosquito-model
 ```
 docker run -it --entrypoint /bin/bash rodekruis/mosquito-model
 ```
-5. Copy your Google Earth Engine service account credentials (stored as .json) in
+5. Copy your Google Earth Engine service account credentials (stored as .json) and [IBF-system](https://github.com/rodekruis/IBF-system) credentials (stored as .env) in
 ```
 mosquito_model/credentials/
 ```
-6. [OPTIONAL] If you need to send the model output to the [IBF-system](https://github.com/rodekruis/IBF-system) via API, add IBF server credentials in the same directory
 
 ### Manual Setup
 Specific requirements:
@@ -53,11 +56,10 @@ pip install .
 ```
 mosquito_model/input/
 ```
-5. Copy your Google Earth Engine service account credentials (stored as .json) in
+5. Copy your Google Earth Engine service account credentials (stored as .json) and [IBF-system](https://github.com/rodekruis/IBF-system) credentials (stored as .env) in
 ```
 mosquito_model/credentials/
 ```
-6. [OPTIONAL] If you need to send the model output to the [IBF-system](https://github.com/rodekruis/IBF-system) via API, add IBF server credentials in the same directory
 
 
 ## Usage

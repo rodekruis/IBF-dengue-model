@@ -27,18 +27,20 @@ mosquito_model/input/
 ```
 mosquito_model/credentials/
 ```
+3. Build the docker image from the root directory
+```
+docker build -t rodekruis/mosquito-model .
+```
 3. Create a docker container
 ```
 docker run --name mosquito-model rodekruis/mosquito-model
 ```
-4. Access the container
+4. Run and access the container
 ```
 docker run -it --entrypoint /bin/bash rodekruis/mosquito-model
 ```
-5. Copy your Google Earth Engine service account credentials (stored as .json) and [IBF-system](https://github.com/rodekruis/IBF-system) credentials (stored as .env) in
-```
-mosquito_model/credentials/
-```
+5. Check that everything is working by running the model (see [Usage](https://github.com/rodekruis/IBF-dengue-model#usage) below)
+
 
 ### Manual Setup
 Specific requirements:

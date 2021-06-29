@@ -22,6 +22,8 @@ import requests
 from dotenv import load_dotenv
 import errno
 import json
+import time
+import subprocesss
 
 
 def get_dates_in_range(begin, end):
@@ -76,7 +78,6 @@ input_data = [
 @click.option('--predictend', default=None, help='end predictions on date (%Y-%m-%d)')
 @click.option('--storeraster', is_flag=True, help='store raster data locally')
 @click.option('--verbose', is_flag=True, help='print output at each step')
-@click.option('--ibfupload', is_flag=True, help='upload to IBF-system via API')
 def main(countrycode, vector, temperaturesuitability, thresholds, demographics, credentials, admincode, data, dest,
          predictstart, predictend, storeraster, verbose):
 
@@ -182,56 +183,67 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
         print(df_predictions.head())
     df_predictions.to_csv(predictions_data) # store predictions
 
-    if ibfupload:
-        # load IBF system credentials
-        ibf_credentials = os.path.join(credentials, 'ibf-credentials.env')
-        if not os.path.exists(ibf_credentials):
-            print(f'ERROR: IBF credentials not found in {credentials}')
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), ibf_credentials)
-        load_dotenv(dotenv_path=ibf_credentials)
-        IBF_API_URL = os.environ.get("IBF_API_URL")
-        ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN")
-        ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+    # load IBF system credentials
+    ibf_credentials = os.path.join(credentials, 'ibf-credentials.env')
+    if not os.path.exists(ibf_credentials):
+        print(f'ERROR: IBF credentials not found in {credentials}')
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), ibf_credentials)
+    load_dotenv(dotenv_path=ibf_credentials)
+    IBF_API_URL = os.environ.get("IBF_API_URL")
+    ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
-        # prepare data to upload
-        today = datetime.date.today()
+    # prepare data to upload
+    today = datetime.date.today()
 
-        # loop over lead times
-        for num_lead_time, lead_time in tqdm(enumerate(["0-month", "1-month", "2-month"])):
+    # loop over lead times
+    for num_lead_time, lead_time in tqdm(enumerate(["0-month", "1-month", "2-month"])):
 
-            # select dataframe of given lead time
-            lead_time_date = today + relativedelta(months=num_lead_time)
-            df_month = df_predictions[(df_predictions['year']==lead_time_date.year)
-                                      & (df_predictions['month']==lead_time_date.month)]
+        # select dataframe of given lead time
+        lead_time_date = today + relativedelta(months=num_lead_time)
+        df_month = df_predictions[(df_predictions['year']==lead_time_date.year)
+                                  & (df_predictions['month']==lead_time_date.month)]
 
-            # loop over layers to upload
-            for layer in tqdm(["alert_threshold", "potential_cases", "potential_cases_U9", "potential_cases_65",
-                               "potential_cases_threshold"], leave=False):
+        # loop over layers to upload
+        for layer in tqdm(["alert_threshold", "potential_cases", "potential_cases_U9", "potential_cases_65",
+                           "potential_cases_threshold"], leave=False):
 
-                # prepare layer
-                exposure_data = {'countryCodeISO3': countrycode}
-                exposure_place_codes = []
-                for ix, row in df_month.iterrows():
-                    exposure_entry = {'placeCode': row['adm_division'],
-                                     'amount': row[layer]}
-                    exposure_place_codes.append(exposure_entry)
-                exposure_data['exposurePlaceCodes'] = exposure_place_codes
-                exposure_data["adminLevel"] = 2
-                exposure_data["leadTime"] = lead_time
-                exposure_data["dynamicIndicator"] = layer
+            # prepare layer
+            exposure_data = {'countryCodeISO3': countrycode}
+            exposure_place_codes = []
+            for ix, row in df_month.iterrows():
+                exposure_entry = {'placeCode': row['adm_division'],
+                                 'amount': row[layer]}
+                exposure_place_codes.append(exposure_entry)
+            exposure_data['exposurePlaceCodes'] = exposure_place_codes
+            exposure_data["adminLevel"] = 2
+            exposure_data["leadTime"] = lead_time
+            exposure_data["dynamicIndicator"] = layer
 
-                # upload data
-                login_response = requests.post(f'{IBF_API_URL}/api/user/login',
-                                               data=[('email', ADMIN_LOGIN), ('password', ADMIN_PASSWORD)])
-                TOKEN = login_response.json()['user']['token']
-                r = requests.post(f'{IBF_API_URL}/api/admin-area-dynamic-data/exposure',
-                                  json=exposure_data,
-                                  headers={'Authorization': 'Bearer '+TOKEN,
-                                           'Content-Type': 'application/json',
-                                           'Accept': 'application/json'})
-                if r.status_code >= 400:
-                    print(r.text)
-                    raise ValueError()
+            # upload data
+            login_response = requests.post(f'{IBF_API_URL}/api/user/login',
+                                           data=[('email', ADMIN_LOGIN), ('password', ADMIN_PASSWORD)])
+            if login_response.status_code >= 400:
+                print(f"ERROR {login_response.status_code} LOGIN: {login_response.text}")
+                print("starting infinite loop to make the docker container fail")
+                count = 0
+                while count < 1:
+                    time.sleep(10)
+                # raise ValueError()
+
+            token = login_response.json()['user']['token']
+            upload_response = requests.post(f'{IBF_API_URL}/api/admin-area-dynamic-data/exposure',
+                                            json=exposure_data,
+                                            headers={'Authorization': 'Bearer '+token,
+                                                     'Content-Type': 'application/json',
+                                                     'Accept': 'application/json'})
+            if upload_response.status_code >= 400:
+                print(f"ERROR {upload_response.status_code} UPLOAD: {upload_response.text}")
+                print("starting infinite loop to make the docker container fail")
+                count = 0
+                while count < 1:
+                    time.sleep(10)
+                # raise ValueError()
 
 
 if __name__ == "__main__":

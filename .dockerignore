@@ -2,5 +2,5 @@ venv/
 __pycache__/
 .git/
 .idea/
-# mosquito_model/credentials/*.json
-# mosquito_model/credentials/*.env
+#mosquito_model/credentials/era-service-account-credentials.json
+#mosquito_model/credentials/ibf-credentials.env

@@ -11,3 +11,4 @@ earthengine-api==0.1.256
 geetools==0.6.7
 python_dateutil==2.8.1
 python-dotenv==0.17.0
+func-timeout==4.3.5

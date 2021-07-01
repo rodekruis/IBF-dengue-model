@@ -82,6 +82,5 @@ Options:
   --predictend TEXT              end predictions on date (%Y-%m-%d)
   --storeraster                  store raster data locally
   --verbose                      print output at each step
-  --ibfupload                    upload to IBF-system via API
   --help                         show this message and exit
   ```

@@ -7,9 +7,9 @@ import pandas as pd
 import numpy as np
 import datetime
 from dateutil import relativedelta
+import logging
 
-
-def compute_risk(df, adm_divisions, num_months_ahead=3):
+def compute_risk(df, adm_divisions, num_months_ahead=3, correction_leadtime=None):
 
     # add N months ahead to the dates in the dataframe
     df['date'] = df['year'].astype(str) + '-' + df['month'].astype(str) + '-15'
@@ -30,6 +30,9 @@ def compute_risk(df, adm_divisions, num_months_ahead=3):
         for year, month in zip(dfdates.year.values, dfdates.month.values):
             df_predictions = df_predictions.append(pd.Series(name=(adm_division, year, month), dtype='object'))
 
+    if correction_leadtime:
+        df_corr = pd.read_csv(correction_leadtime)
+
     # loop over admin divisions anc calculate risk
     for admin_division in adm_divisions:
         df_admin_div = df[df.adm_division == admin_division]
@@ -44,7 +47,7 @@ def compute_risk(df, adm_divisions, num_months_ahead=3):
                           date_prediction - datetime.timedelta(60),
                           date_prediction - datetime.timedelta(30)]
             weights_input = [0.16, 0.68, 0.16]
-            risk_total, weight_total = 0., 0.
+            risk_total, weight_total, counter = 0., 0., 0
             for date_input, weight_input in zip(dates_input, weights_input):
                 month_input = date_input.month
                 year_input = date_input.year
@@ -52,9 +55,31 @@ def compute_risk(df, adm_divisions, num_months_ahead=3):
                 if not df_input.empty:
                     risk_total += weight_input * df_input.iloc[0]['suitability']
                     weight_total += weight_input
+                    counter += 1
             risk_total = risk_total / weight_total
-            # store risk
+
+            # extract lead time
+            lead_time = ''
+            if counter == 3:
+                lead_time = '0-month'
+            elif counter == 2:
+                lead_time = '1-month'
+            elif counter == 1:
+                lead_time = '2-month'
+            else:
+                logging.error('compute_risk: lead time unknown')
+
+            if correction_leadtime:
+                # correct for lead time
+                if lead_time != '0-month':
+                    df_corr_ = df_corr[(df_corr['lead_time']==lead_time) & (df_corr['month']==month) & (df_corr['adm_division']==admin_division)]
+                    ratio_std = df_corr_.ratio_std.values[0]
+                    diff_mean = df_corr_.diff_mean.values[0]
+                    risk_total = ratio_std * risk_total - diff_mean
+
+            # store risk and lead time
             df_predictions.at[(admin_division, year, month), 'risk'] = risk_total
+            df_predictions.at[(admin_division, year, month), 'lead_time'] = lead_time
 
     df_predictions.rename_axis(index=['adm_division', 'year', 'month'], inplace=True)
     df_predictions.reset_index(inplace=True)

@@ -1,14 +1,9 @@
 FROM python:3.7.10-buster
 
-RUN apt-get update && \
-	apt-get install -y python3-pip && \
-	ln -sfn /usr/bin/python3.6 /usr/bin/python && \
-	ln -sfn /usr/bin/pip3 /usr/bin/pip
-
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
-RUN deps='build-essential gdal-bin python-gdal libgdal-dev kmod wget apache2' && \
+RUN deps='build-essential gdal-bin python-gdal libgdal-dev kmod wget' && \
 	apt-get update && \
 	apt-get install -y $deps
 

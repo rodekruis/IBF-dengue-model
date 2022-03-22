@@ -75,7 +75,7 @@ input_data = [
 @click.option('--admincode', default='ADM2_PCODE', help='name of admin code in vector file')
 @click.option('--temperaturesuitability', default='input/temperature_suitability.csv',
               help='table with suitability vs temperature')
-@click.option('--thresholds', default='input/alert_thresholds.csv',
+@click.option('--thresholds', default='input/alert_thresholds_leadtime.csv',
               help='table with thresholds and coefficients (risk vs dengue cases)')
 @click.option('--demographics', default='input/phl_vulnerability_dengue_data_ibfera.csv',
               help='table with demographic data')
@@ -87,9 +87,10 @@ input_data = [
               help='start predictions from date (%Y-%m-%d)')
 @click.option('--predictend', default=None, help='end predictions on date (%Y-%m-%d)')
 @click.option('--storeraster', is_flag=True, help='store raster data locally')
+@click.option('--noemail', is_flag=True, help='do not send email alert')
 @click.option('--verbose', is_flag=True, help='print output at each step')
-def main(countrycode, vector, temperaturesuitability, thresholds, demographics, credentials, admincode, data, dest,
-         predictstart, predictend, storeraster, verbose):
+def main(countrycode, vector, temperaturesuitability, thresholds, demographics, credentials, admincode,
+         data, dest, predictstart, predictend, storeraster, noemail, verbose):
 
     # initialize GEE
     gee_credentials = os.path.join(credentials, 'era-service-account-credentials.json')
@@ -133,30 +134,34 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
                 df_data_processed = df_data_processed.append(pd.Series(name=(adm_division, year, month), dtype='object'))
 
         # get raw data, compute zonal statistics and save processed data
-        try:
-            for data_tuple in input_data:
-                logging.info(f"starting collection {data_tuple[0]} {data_tuple[1]}")
-                raster_data = ''
-                for start_date, end_date in zip(start_dates, end_dates):
-                    # get raw data
+        for data_tuple in input_data:
+            logging.info(f"starting collection {data_tuple[0]} {data_tuple[1]}")
+            raster_data = ''
+            for start_date, end_date in zip(start_dates, end_dates):
+                # get raw data
+                try:
                     raster_data = func_timeout(600, get_data,
                                                args=(countrycode, start_date, end_date, data, data_tuple[0], data_tuple[1]))
-                    # compute zonal statistics
+                except FunctionTimedOut:
+                    logging.error(f"PIPELINE ERROR : TIMEOUT DOWNLOADING {data_tuple[0]} {data_tuple[1]}")
+                    exit(0)
+                # compute zonal statistics
+                try:
                     df_stats = func_timeout(600, compute_zonalstats,
                                             args=(raster_data, vector, admincode)).reset_index()
+                except FunctionTimedOut:
+                    logging.error(f"PIPELINE ERROR : TIMEOUT CALCULATING ZONAL STATS {data_tuple[0]} {data_tuple[1]}")
+                    exit(0)
 
-                    # save zonal statistics in dataframe for processed data
-                    for ix, row in df_stats.iterrows():
-                        if (row['adm_division'], start_date.year, start_date.month) in df_data_processed.index:
-                            df_data_processed.at[(row['adm_division'], start_date.year, start_date.month), data_tuple[1]] = row['mean']
-                        else:
-                            logging.error('NO DATA AT', data_tuple, start_date, end_date)
-                # remove raster data
-                if not storeraster:
-                    shutil.rmtree(Path(raster_data).parent)
-        except FunctionTimedOut:
-            logging.error(f"PIPELINE ERROR : TIMEOUT COLLECTING {data_tuple[0]} {data_tuple[1]}")
-            exit(0)
+                # save zonal statistics in dataframe for processed data
+                for ix, row in df_stats.iterrows():
+                    if (row['adm_division'], start_date.year, start_date.month) in df_data_processed.index:
+                        df_data_processed.at[(row['adm_division'], start_date.year, start_date.month), data_tuple[1]] = row['mean']
+                    else:
+                        logging.error('NO DATA AT', data_tuple, start_date, end_date)
+            # remove raster data
+            if not storeraster:
+                shutil.rmtree(Path(raster_data).parent)
 
         df_data_processed.rename_axis(index=['adm_division', 'year', 'month'], inplace=True)
         df_data_processed.to_csv(processed_data)  # store processed data
@@ -172,7 +177,7 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
     # compute risk
     df_predictions = compute_risk(df, adm_divisions, num_months_ahead=3)
     if verbose:
-        print('VECTOR SUITABILITY AND RISK PREDICTIONS')
+        print('RISK PREDICTIONS')
         print(df_predictions.head())
 
     # calculate exposed population
@@ -184,12 +189,15 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
     df_predictions['alert_threshold'] = 0
 
     for ix, row in df_predictions.iterrows():
-        place_date = (df_thresholds['adm_division'] == row['adm_division']) & (df_thresholds['month'] == row['month'])
+        place_date = (df_thresholds['adm_division'] == row['adm_division']) & (df_thresholds['month'] == row['month']) & \
+                     (df_thresholds['lead_time'] == row['lead_time'])
         coeff = df_thresholds[place_date]['coeff'].values[0]
         thr_std = df_thresholds[place_date]['alert_threshold_std'].values[0]
         thr_qnt = df_thresholds[place_date]['alert_threshold_qnt'].values[0]
         max_thr = max(thr_std, thr_qnt)
-        if row['risk'] > thr_std and row['risk'] > thr_qnt:
+        if verbose:
+            print(f"admin {row['adm_division']}, month {row['month']}, leadtime {row['lead_time']}: {thr_std} {thr_qnt} --> {max_thr}")
+        if row['risk'] > max_thr:
             df_predictions.at[ix, 'alert_threshold'] = 1
         df_predictions.at[ix, 'potential_cases'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population'])
         df_predictions.at[ix, 'potential_cases_U9'] = int(coeff * row['risk'] * df_demo.loc[row['adm_division'], 'Population U9'])
@@ -245,6 +253,10 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
             exposure_data["adminLevel"] = 2
             exposure_data["leadTime"] = lead_time
             exposure_data["dynamicIndicator"] = layer
+            exposure_data["disasterType"] = "dengue"
+
+            with open(os.path.join(dest, f"{layer}_{lead_time}.json"), 'w') as outfile:
+                json.dump(exposure_data, outfile)
 
             # upload data
             upload_response = requests.post(f'{IBF_API_URL}/api/admin-area-dynamic-data/exposure',
@@ -258,15 +270,18 @@ def main(countrycode, vector, temperaturesuitability, thresholds, demographics, 
 
     # send email
     if 1 in df_predictions['alert_threshold'].values:
-        logging.info(f"SENDING ALERT EMAIL")
-        email_response = requests.post(f'{IBF_API_URL}/api/notification/send',
-                                       json={'countryCodeISO3': countrycode},
-                                       headers={'Authorization': 'Bearer ' + token,
-                                                'Content-Type': 'application/json',
-                                                'Accept': 'application/json'})
-        if email_response.status_code >= 400:
-            logging.error(f"PIPELINE ERROR AT EMAIL {email_response.status_code}: {email_response.text}")
-            exit(0)
+        if noemail:
+            logging.info(f"SKIPPING ALERT EMAIL")
+        else:
+            logging.info(f"SENDING ALERT EMAIL")
+            email_response = requests.post(f'{IBF_API_URL}/api/notification/send',
+                                           json={'countryCodeISO3': countrycode},
+                                           headers={'Authorization': 'Bearer ' + token,
+                                                    'Content-Type': 'application/json',
+                                                    'Accept': 'application/json'})
+            if email_response.status_code >= 400:
+                logging.error(f"PIPELINE ERROR AT EMAIL {email_response.status_code}: {email_response.text}")
+                exit(0)
 
 
 if __name__ == "__main__":

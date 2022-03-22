@@ -21,7 +21,7 @@ For 510: project service account accessible [here](https://console.cloud.google.
 
 ### with Docker
 1. Install [Docker](https://www.docker.com/get-started)
-3. Download input data from [here](https://rodekruis.sharepoint.com/sites/510-CRAVK-510/_layouts/15/guestaccess.aspx?docid=01fe7b3505b0440229856228d6210044c&authkey=Acr_sCnyg7cKHmMUw0ay1C8&expiration=2022-03-21T23%3A00%3A00.000Z&e=ciWvIh) and move it to
+3. Download input data from [here](https://drive.google.com/file/d/1O_x3oUdgdUPAGPymJGpu1ggAI5YRUTpR/view?usp=sharing) and move it to
 ```
 mosquito_model/input/
 ```
@@ -56,7 +56,7 @@ cd mosquito_model
 ```
 pip install .
 ```
-3. Download input data from [here](https://rodekruis.sharepoint.com/sites/510-CRAVK-510/_layouts/15/guestaccess.aspx?docid=01fe7b3505b0440229856228d6210044c&authkey=Acr_sCnyg7cKHmMUw0ay1C8&expiration=2022-03-21T23%3A00%3A00.000Z&e=ciWvIh) and move it to
+3. Download input data from [here](https://drive.google.com/file/d/1O_x3oUdgdUPAGPymJGpu1ggAI5YRUTpR/view?usp=sharing) and move it to
 ```
 mosquito_model/input/
 ```

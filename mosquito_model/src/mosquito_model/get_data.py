@@ -12,8 +12,7 @@ import datetime
 today = datetime.date.today()
 start_date = datetime.date.today() + datetime.timedelta(-30)
 import time
-import math
-import click
+import logging
 
 
 def get_data(country_iso_code, datestart, dateend, dest, collection, variable):
@@ -40,7 +39,7 @@ def get_data(country_iso_code, datestart, dateend, dest, collection, variable):
     file_name = folder + '/' + name
 
     if os.path.exists(file_name):
-        print('found existing', name, ', skipping')
+        logging.error('found existing', name, ', skipping')
         return file_name
 
     # get ImageCollection within given dates and bounding box
@@ -56,8 +55,8 @@ def get_data(country_iso_code, datestart, dateend, dest, collection, variable):
 
     count = col.size().getInfo()
     if count == 0:
-        print('ERROR: no data found')
-        return 'error'
+        logging.error('ERROR: no data found')
+        exit(0)
 
     # get list of images in collection
     clist = col.toList(col.size().getInfo())

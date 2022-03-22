@@ -4,7 +4,7 @@ pandas==1.2.1
 geopandas==0.8.1
 Fiona==1.8.13.post1
 rasterio==1.1.0
-numpy==1.19.2
+numpy==1.21.0
 country_bounding_boxes==0.2.3
 earthengine-api==0.1.256
 geetools==0.6.7

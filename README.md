@@ -8,7 +8,9 @@ This model:
 3. determines if dengue risk is anomalously high and, if so, gives an *alert*
 4. calculates the expected number of dengue cases given dengue risk
 
-See details in the [IBF-dengue mosquito-model technical note](https://drive.google.com/file/d/1kCaJE2it05yPCkqzDGYd8cWjpTm53Nyd/view?usp=sharing).
+See details in the [IBF-dengue technical note](https://drive.google.com/file/d/1kCaJE2it05yPCkqzDGYd8cWjpTm53Nyd/view?usp=sharing).
+
+**If you want to run this model on [Azure](https://en.wikipedia.org/wiki/Microsoft_Azure), follow [these instructions](https://docs.google.com/document/d/182aQPVRZkXifHDNjmE66tj5L1l4IvAt99rxBzpmISPU/edit?usp=sharing)**.
 
 ## Setup
 Generic requirements:
@@ -82,6 +84,5 @@ Options:
   --predictend TEXT              end predictions on date (%Y-%m-%d)
   --storeraster                  store raster data locally
   --verbose                      print output at each step
-  --ibfupload                    upload to IBF-system via API
   --help                         show this message and exit
   ```

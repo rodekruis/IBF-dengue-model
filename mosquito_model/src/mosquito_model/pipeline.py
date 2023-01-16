@@ -63,8 +63,8 @@ def get_dates_in_range(begin, end):
 input_data = [
     ('NASA/GPM_L3/IMERG_V06', 'precipitationCal'),
     ('JAXA/GPM_L3/GSMaP/v6/operational', 'hourlyPrecipRate'),
-    ('MODIS/006/MOD11A1', 'LST_Day_1km'),
-    ('MODIS/006/MOD11A1', 'LST_Night_1km')
+    ('MODIS/061/MOD11A1', 'LST_Day_1km'),
+    ('MODIS/061/MOD11A1', 'LST_Night_1km')
 ]
 
 
